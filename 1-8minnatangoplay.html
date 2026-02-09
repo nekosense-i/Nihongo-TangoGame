@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>日本語の旅 (Japanese Journey)</title>
+    <style>
+        :root {
+            /* 和风色板 */
+            --bg-paper: #fcfaf2; /* 生成色 */
+            --ink-black: #2b2b2b; /* 墨色 */
+            --japan-blue: #2e4b75; /* 蓝染 */
+            --vermilion: #c94a4a; /* 鸟居红 */
+            --matcha: #6e8e59; /* 抹茶绿 */
+            --sakura: #fbe0e0; /* 樱色背景 */
+            --sakura-deep: #e89da2; /* 樱色深 */
+            --wood: #8c7056; /* 木色 */
+            
+            --shadow-soft: 2px 4px 10px rgba(44, 44, 44, 0.05);
+            --border-ink: 1px solid rgba(0,0,0,0.1);
+        }
+        
+        * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-paper);
+            background-image: radial-gradient(#e6e2d3 1px, transparent 1px);
+            background-size: 20px 20px; /* 细微的和纸颗粒感 */
+            color: var(--ink-black);
+            font-family: "Yu Mincho", "Hiragino Mincho ProN", "MS PMincho", serif; /* 强制衬线体 */
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 动画定义 - 柔和版 */
+        @keyframes float-gentle {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0px); }
+        }
+        
+        @keyframes ink-spread {
+            0% { transform: scale(0.95); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes shake-ink {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px) rotate(-1deg); }
+            75% { transform: translateX(5px) rotate(1deg); }
+            100% { transform: translateX(0); }
+        }
+        
+        @keyframes fade-up {
+            0% { opacity: 0; transform: translateY(10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes sakura-float {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-40px) scale(1.2); }
+        }
+
+        .shaking { animation: shake-ink 0.4s; color: var(--vermilion); }
+        .popping { animation: ink-spread 0.3s ease-out; color: var(--japan-blue); }
+
+        /* 顶部导航 */
+        header {
+            height: 70px;
+            background: rgba(252, 250, 242, 0.9);
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            border-bottom: 2px solid #e0ddd0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+            z-index: 10;
+        }
+        
+        #level-scroller {
+            flex: 1;
+            display: flex;
+            overflow-x: auto;
+            gap: 12px;
+            padding-right: 10px;
+            scrollbar-width: none;
+            align-items: center;
+        }
+        #level-scroller::-webkit-scrollbar { display: none; }
+        
+        .level-btn {
+            min-width: 45px;
+            height: 45px;
+            background: #fff;
+            border: 1px solid #dcdcdc;
+            color: #888;
+            border-radius: 50%; /* 圆形印章风格 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            cursor: pointer;
+            font-family: sans-serif; /* 数字用无衬线体更清晰 */
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            position: relative;
+        }
+        
+        .level-btn.active {
+            background: var(--japan-blue);
+            color: #fff;
+            border-color: var(--japan-blue);
+            box-shadow: 0 2px 8px rgba(46, 75, 117, 0.3);
+            transform: scale(1.1);
+        }
+        
+        .level-btn.locked {
+            background: #f0f0f0;
+            color: #ccc;
+            border: none;
+            pointer-events: none;
+        }
+
+        .reset-btn {
+            margin-left: 15px;
+            color: var(--vermilion);
+            border: 1px solid var(--vermilion);
+            background: transparent;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            font-family: "Yu Mincho", serif;
+            transition: all 0.2s;
+        }
+        .reset-btn:active { background: var(--vermilion); color: white; }
+
+        /* 核心游戏区 */
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            padding: 20px;
+            z-index: 1;
+        }
+
+        #word-display {
+            font-size: 4.5rem;
+            margin-bottom: 40px;
+            text-align: center;
+            min-height: 90px;
+            font-weight: bold;
+            color: var(--ink-black);
+            text-shadow: 2px 2px 0px rgba(0,0,0,0.05); /* 类似凸版印刷效果 */
+            letter-spacing: 0.05em;
+        }
+        
+        /* 激励词浮动层 */
+        #praise-layer {
+            position: absolute;
+            top: 15%;
+            width: 100%;
+            text-align: center;
+            pointer-events: none;
+            z-index: 50;
+        }
+        
+        .praise-text {
+            font-size: 2rem;
+            color: var(--vermilion); /* 红色印章感 */
+            background: rgba(255,255,255,0.9);
+            padding: 10px 20px;
+            border: 2px solid var(--vermilion);
+            border-radius: 8px;
+            display: inline-block;
+            box-shadow: 5px 5px 0 rgba(201, 74, 74, 0.2);
+            animation: sakura-float 1.2s forwards;
+            font-weight: bold;
+            font-family: "Yu Mincho", serif;
+        }
+
+        #input-area {
+            width: 100%;
+            max-width: 650px;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .option-container {
+            background: rgba(255,255,255,0.6);
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .option-label {
+            width: 100%;
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--wood);
+            letter-spacing: 3px;
+            margin-bottom: 15px;
+            border-bottom: 1px dashed #dcdcdc;
+            padding-bottom: 5px;
+            font-family: sans-serif;
+            opacity: 0.8;
+        }
+
+        .option-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .choice-btn {
+            padding: 12px 24px;
+            border: 1px solid #d0d0d0;
+            border-radius: 6px; /* 方形圆角，更像纸牌 */
+            background: #fff;
+            color: var(--ink-black);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1.1rem;
+            flex-grow: 1;
+            text-align: center;
+            min-width: 100px;
+            box-shadow: 0 2px 0 #e0e0e0; /* 纸牌厚度感 */
+            position: relative;
+            top: 0;
+        }
+
+        .choice-btn:active {
+            top: 2px;
+            box-shadow: none;
+        }
+
+        .choice-btn.selected {
+            border-color: var(--japan-blue);
+            background: var(--japan-blue);
+            color: #fff;
+            box-shadow: 0 4px 10px rgba(46, 75, 117, 0.2);
+            top: -1px;
+        }
+
+        /* 底部荣誉墙 */
+        footer {
+            height: 60px;
+            border-top: 1px solid #e0ddd0;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            background: #fdfdf9;
+            overflow-x: auto;
+            gap: 10px;
+        }
+        
+        .trophy { font-size: 1.4rem; filter: drop-shadow(1px 1px 0 rgba(0,0,0,0.1)); }
+
+        /* 遮罩与模态框 */
+        #overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(252, 250, 242, 0.95); /* 不透明度高的米色遮罩 */
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            text-align: center;
+            padding: 40px;
+            border: 4px double var(--japan-blue);
+            background: white;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .result-title { font-size: 3.5rem; margin-bottom: 10px; color: var(--japan-blue); font-weight: bold; }
+        .result-score { font-size: 1.5rem; color: #666; margin-bottom: 40px; font-family: sans-serif; }
+        
+        .action-btn {
+            padding: 15px 50px;
+            font-size: 1.2rem;
+            background: var(--vermilion);
+            border: none;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 30px;
+            box-shadow: 0 4px 15px rgba(201, 74, 74, 0.3);
+            font-family: "Yu Mincho", serif;
+            transition: transform 0.2s;
+        }
+        .action-btn:hover { transform: scale(1.05); }
+        
+        /* 隐藏类 */
+        .hidden { display: none !important; }
+        
+        /* 进度条 */
+        #progress-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 6px;
+            background: var(--matcha);
+            width: 0%;
+            transition: width 0.5s ease;
+            opacity: 0.8;
+        }
+        
+        /* 装饰背景圆 */
+        .bg-circle {
+            position: absolute;
+            border-radius: 50%;
+            background: var(--vermilion);
+            opacity: 0.03;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="bg-circle" style="width: 300px; height: 300px; top: -50px; right: -50px;"></div>
+    <div class="bg-circle" style="width: 200px; height: 200px; bottom: 50px; left: -50px; background: var(--japan-blue);"></div>
+
+    <header>
+        <div id="level-scroller"></div>
+        <div class="reset-btn" onclick="resetData()">記録削除</div>
+    </header>
+    
+    <div id="progress-bar"></div>
+
+    <main>
+        <div id="word-display">開始</div>
+        <div id="praise-layer"></div>
+        
+        <div id="input-area">
+            <div id="reading-section" class="option-container">
+                <div class="option-label">読み方</div>
+                <div id="reading-options" class="option-group"></div>
+            </div>
+            
+            <div style="height: 10px;"></div>
+
+            <div id="meaning-section" class="option-container">
+                <div class="option-label">意味</div>
+                <div id="meaning-options" class="option-group"></div>
+            </div>
+        </div>
+    </main>
+
+    <footer id="trophy-wall">
+        <span style="color:#888; font-size:0.8rem; margin-right:10px; font-family:sans-serif;">達成目録 :: </span>
+    </footer>
+
+    <canvas id="confetti-canvas" style="position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:999;"></canvas>
+
+    <div id="overlay">
+        <div class="modal-content">
+            <div class="result-title" id="res-title">皆伝</div>
+            <div class="result-score" id="res-score">正解率: 100%</div>
+            <button class="action-btn" id="next-btn" onclick="nextLevel()">次へ進む</button>
+        </div>
+    </div>
+
+    <script>
+        // 数据源注入
+        const rawData = [{"w": "私", "r": "わたし", "m": "我", "p": "noun"}, {"w": "あなた", "r": "あなた", "m": "你", "p": "noun"}, {"w": "あの人", "r": "あのひと", "m": "那个人", "p": "noun"}, {"w": "先生", "r": "せんせい", "m": "老师", "p": "adj"}, {"w": "教師", "r": "きょうし", "m": "教师", "p": "noun"}, {"w": "学生", "r": "がくせい", "m": "学生", "p": "adj"}, {"w": "会社員", "r": "かいしゃいん", "m": "公司职员", "p": "noun"}, {"w": "社員", "r": "しゃいん", "m": "职员", "p": "noun"}, {"w": "銀行員", "r": "ぎんこういん", "m": "银行员", "p": "noun"}, {"w": "医者", "r": "いしゃ", "m": "医生", "p": "noun"}, {"w": "研究者", "r": "けんきゅうしゃ", "m": "研究人员", "p": "noun"}, {"w": "大学", "r": "だいがく", "m": "大学", "p": "verb"}, {"w": "これ", "r": "これ", "m": "这个", "p": "noun"}, {"w": "それ", "r": "それ", "m": "那个", "p": "noun"}, {"w": "あれ", "r": "あれ", "m": "那个（远）", "p": "noun"}, {"w": "この", "r": "この", "m": "这个...", "p": "noun"}, {"w": "本", "r": "ほん", "m": "书", "p": "noun"}, {"w": "辞書", "r": "じしょ", "m": "辞典", "p": "noun"}, {"w": "雑誌", "r": "ざっし", "m": "杂志", "p": "noun"}, {"w": "新聞", "r": "しんぶん", "m": "报纸", "p": "noun"}, {"w": "ノート", "r": "のーと", "m": "笔记本", "p": "noun"}, {"w": "手帳", "r": "てちょう", "m": "记事本", "p": "verb"}, {"w": "名刺", "r": "めいし", "m": "名片", "p": "noun"}, {"w": "鉛筆", "r": "えんぴつ", "m": "铅笔", "p": "verb"}, {"w": "ここ", "r": "ここ", "m": "这里", "p": "noun"}, {"w": "そこ", "r": "そこ", "m": "那里", "p": "noun"}, {"w": "あそこ", "r": "あそこ", "m": "那里（远）", "p": "noun"}, {"w": "どこ", "r": "どこ", "m": "哪里", "p": "noun"}, {"w": "教室", "r": "きょうしつ", "m": "教室", "p": "verb"}, {"w": "食堂", "r": "しょくどう", "m": "食堂", "p": "verb"}, {"w": "事務所", "r": "じむしょ", "m": "办公室", "p": "noun"}, {"w": "受付", "r": "うけつけ", "m": "接待处", "p": "noun"}, {"w": "ロビー", "r": "ろびー", "m": "大厅", "p": "noun"}, {"w": "部屋", "r": "へや", "m": "房间", "p": "noun"}, {"w": "お手洗い", "r": "おてあらい", "m": "洗手间", "p": "adj"}, {"w": "階段", "r": "かいだん", "m": "楼梯", "p": "noun"}, {"w": "起きる", "r": "おきる", "m": "起床", "p": "verb"}, {"w": "寝る", "r": "ねる", "m": "睡觉", "p": "verb"}, {"w": "働く", "r": "はたらく", "m": "工作", "p": "verb"}, {"w": "休む", "r": "やすむ", "m": "休息", "p": "verb"}, {"w": "勉強する", "r": "べんきょうする", "m": "学习", "p": "verb"}, {"w": "終わる", "r": "おわる", "m": "结束", "p": "verb"}, {"w": "デパート", "r": "でぱーと", "m": "百货公司", "p": "noun"}, {"w": "銀行", "r": "ぎんこう", "m": "银行", "p": "verb"}, {"w": "郵便局", "r": "ゆうびんきょく", "m": "邮局", "p": "verb"}, {"w": "図書館", "r": "としょかん", "m": "图书馆", "p": "noun"}, {"w": "美術館", "r": "びじゅつかん", "m": "美术馆", "p": "noun"}, {"w": "今", "r": "いま", "m": "现在", "p": "noun"}, {"w": "行く", "r": "いく", "m": "去", "p": "verb"}, {"w": "来る", "r": "くる", "m": "来", "p": "verb"}, {"w": "帰る", "r": "かえる", "m": "回家", "p": "verb"}, {"w": "学校", "r": "がっこう", "m": "学校", "p": "verb"}, {"w": "スーパー", "r": "すーぱー", "m": "超市", "p": "noun"}, {"w": "駅", "r": "えき", "m": "车站", "p": "noun"}, {"w": "飛行機", "r": "ひこうき", "m": "飞机", "p": "noun"}, {"w": "船", "r": "ふね", "m": "船", "p": "noun"}, {"w": "電車", "r": "でんしゃ", "m": "电车", "p": "noun"}, {"w": "地下鉄", "r": "ちかてつ", "m": "地铁", "p": "verb"}, {"w": "新幹線", "r": "しんかんせん", "m": "新干线", "p": "noun"}, {"w": "自転車", "r": "じてんしゃ", "m": "自行车", "p": "noun"}, {"w": "食べる", "r": "たべる", "m": "吃", "p": "verb"}, {"w": "飲む", "r": "のむ", "m": "喝", "p": "verb"}, {"w": "吸う", "r": "すう", "m": "吸（烟）", "p": "verb"}, {"w": "見る", "r": "みる", "m": "看", "p": "verb"}, {"w": "聞く", "r": "きく", "m": "听", "p": "verb"}, {"w": "読む", "r": "よむ", "m": "读", "p": "verb"}, {"w": "書く", "r": "かく", "m": "写", "p": "verb"}, {"w": "買う", "r": "かう", "m": "买", "p": "verb"}, {"w": "撮る", "r": "とる", "m": "照相", "p": "verb"}, {"w": "する", "r": "する", "m": "做", "p": "verb"}, {"w": "会う", "r": "あう", "m": "遇见", "p": "verb"}, {"w": "御飯", "r": "ごはん", "m": "饭", "p": "noun"}, {"w": "切る", "r": "きる", "m": "剪、切", "p": "verb"}, {"w": "送る", "r": "おくる", "m": "寄、送", "p": "verb"}, {"w": "あげる", "r": "あげる", "m": "给", "p": "verb"}, {"w": "もらう", "r": "もらう", "m": "得到", "p": "verb"}, {"w": "貸す", "r": "かす", "m": "借出", "p": "noun"}, {"w": "借りる", "r": "かりる", "m": "借入", "p": "verb"}, {"w": "教える", "r": "おしえる", "m": "教", "p": "verb"}, {"w": "習う", "r": "ならう", "m": "学习", "p": "verb"}, {"w": "かける", "r": "かける", "m": "打（电话）", "p": "verb"}, {"w": "手", "r": "て", "m": "手", "p": "noun"}, {"w": "箸", "r": "はし", "m": "筷子", "p": "noun"}, {"w": "スプーン", "r": "すぷーん", "m": "勺子", "p": "noun"}, {"w": "ハンサム", "r": "ハンサム", "m": "英俊", "p": "noun"}, {"w": "綺麗", "r": "きれい", "m": "漂亮、干净", "p": "adj"}, {"w": "静か", "r": "しずか", "m": "安静", "p": "noun"}, {"w": "賑やか", "r": "にぎやか", "m": "热闹", "p": "noun"}, {"w": "有名", "r": "ゆうめい", "m": "有名", "p": "adj"}, {"w": "親切", "r": "しんせつ", "m": "亲切", "p": "verb"}, {"w": "元気", "r": "げんき", "m": "健康、精力充沛", "p": "noun"}, {"w": "暇", "r": "ひま", "m": "空闲", "p": "noun"}, {"w": "便利", "r": "べんり", "m": "便利", "p": "noun"}, {"w": "素敵", "r": "すてき", "m": "极好", "p": "noun"}, {"w": "大きい", "r": "おおきい", "m": "大", "p": "adj"}, {"w": "小さい", "r": "ちいさい", "m": "小", "p": "adj"}, {"w": "新しい", "r": "あたらしい", "m": "新", "p": "adj"}, {"w": "古い", "r": "ふるい", "m": "旧", "p": "adj"}, {"w": "良い", "r": "いい", "m": "好", "p": "adj"}, {"w": "悪い", "r": "わるい", "m": "坏", "p": "adj"}];
+        
+        const WORDS_PER_LEVEL = 20;
+        const PASS_THRESHOLD = 0.8;
+        const PERFECT_THRESHOLD = 0.9;
+        
+        // 和风激励词库
+        const PRAISE_WORDS = [
+            "お見事！", "素晴らしい", "正解", 
+            "天晴れ！", "流石です", "その調子",
+            "完璧", "雅やか"
+        ];
+        
+        // 存储模块
+        const DB = {
+            mem: {},
+            save: function(key, val) {
+                this.mem[key] = val;
+                try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {}
+            },
+            load: function(key, def) {
+                try {
+                    const v = localStorage.getItem(key);
+                    return v ? JSON.parse(v) : def;
+                } catch(e) {
+                    return this.mem[key] || def;
+                }
+            },
+            clear: function() {
+                try { localStorage.clear(); } catch(e) {}
+                this.mem = {};
+            }
+        };
+
+        // 游戏状态
+        let gameState = {
+            currentLevel: 1, maxLevel: 1, honors: {},
+            queue: [], currentIndex: 0, correctCount: 0,
+            wrongList: [], isRetryMode: false, retrySuccessCount: 0,
+            selection: { r: null, m: null }
+        };
+
+        function initGame() {
+            const savedMax = DB.load('maxLevel', 1);
+            gameState.maxLevel = savedMax;
+            gameState.honors = DB.load('honors', {});
+            renderLevelSelector();
+            renderTrophyWall();
+            startLevel(savedMax);
+        }
+
+        function startLevel(lvl) {
+            gameState.currentLevel = lvl;
+            gameState.correctCount = 0;
+            gameState.wrongList = [];
+            gameState.currentIndex = 0;
+            gameState.isRetryMode = false;
+            gameState.selection = { r: null, m: null };
+            
+            const startIdx = (lvl - 1) * WORDS_PER_LEVEL;
+            if (startIdx >= rawData.length) {
+                alert("全巻修了！おめでとうございます！ (Complete!)");
+                return;
+            }
+            
+            let slice = rawData.slice(startIdx, startIdx + WORDS_PER_LEVEL);
+            if (slice.length === 0) slice = rawData.slice(-WORDS_PER_LEVEL);
+
+            gameState.queue = shuffle(slice);
+            updateUIState();
+            renderQuestion();
+        }
+        
+        function startRetryMode() {
+            gameState.isRetryMode = true;
+            gameState.queue = shuffle([...gameState.wrongList]); 
+            gameState.correctCount = 0;
+            gameState.wrongList = []; 
+            gameState.currentIndex = 0;
+            updateUIState();
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            const q = gameState.queue[gameState.currentIndex];
+            const wordDisplay = document.getElementById('word-display');
+            
+            wordDisplay.innerText = q.w;
+            wordDisplay.classList.remove('popping');
+            document.body.classList.remove('shaking');
+            gameState.selection = { r: null, m: null };
+
+            // 1. 读音选项
+            const rContainer = document.getElementById('reading-options');
+            rContainer.innerHTML = '';
+            
+            const isPureKana = /^[぀-ゟ゠-ヿ]+$/.test(q.w);
+            document.getElementById('reading-section').classList.toggle('hidden', isPureKana);
+            
+            if (isPureKana) {
+                gameState.selection.r = 'AUTO_CORRECT';
+            } else {
+                let distractors = getReadingDistractors(q);
+                let options = shuffle([q.r, ...distractors]);
+                options.forEach(opt => {
+                    let btn = createOptionBtn(opt, 'r', opt === q.r);
+                    rContainer.appendChild(btn);
+                });
+            }
+
+            // 2. 含义选项
+            const mContainer = document.getElementById('meaning-options');
+            mContainer.innerHTML = '';
+            
+            const isDirectMatch = (q.w === q.m); 
+            document.getElementById('meaning-section').classList.toggle('hidden', isDirectMatch);
+
+            if (isDirectMatch) {
+                gameState.selection.m = 'AUTO_CORRECT';
+            } else {
+                let distractors = getMeaningDistractors(q);
+                let options = shuffle([q.m, ...distractors]);
+                options.forEach(opt => {
+                    let btn = createOptionBtn(opt, 'm', opt === q.m);
+                    mContainer.appendChild(btn);
+                });
+            }
+            
+            const pct = ((gameState.currentIndex) / gameState.queue.length) * 100;
+            document.getElementById('progress-bar').style.width = pct + '%';
+        }
+
+        function getReadingDistractors(targetWord) {
+            const correct = targetWord.r;
+            const lastChar = correct.slice(-1);
+            let candidates = rawData.filter(x => x.r.endsWith(lastChar) && x.r !== correct && Math.abs(x.r.length - correct.length) < 3);
+            if (candidates.length < 3) {
+                let randoms = rawData.filter(x => x.r !== correct);
+                candidates = [...candidates, ...randoms];
+            }
+            return shuffle(candidates).slice(0, 3).map(x => x.r);
+        }
+
+        function getMeaningDistractors(targetWord) {
+            let pool = rawData.filter(x => x.m !== targetWord.m);
+            let samePos = pool.filter(x => x.p === targetWord.p);
+            if (samePos.length >= 3) {
+                return shuffle(samePos).slice(0, 3).map(x => x.m);
+            } else {
+                return shuffle(pool).slice(0, 3).map(x => x.m);
+            }
+        }
+
+        function createOptionBtn(text, type, isCorrect) {
+            const btn = document.createElement('div');
+            btn.className = 'choice-btn';
+            btn.innerText = text;
+            btn.onclick = () => handleSelect(btn, type, isCorrect);
+            return btn;
+        }
+
+        function handleSelect(btn, type, isCorrect) {
+            const container = type === 'r' ? document.getElementById('reading-options') : document.getElementById('meaning-options');
+            Array.from(container.children).forEach(c => c.classList.remove('selected'));
+            btn.classList.add('selected');
+            
+            gameState.selection[type] = isCorrect;
+            
+            if (gameState.selection.r !== null && gameState.selection.m !== null) {
+                setTimeout(evaluateAnswer, 200); 
+            }
+        }
+
+        function evaluateAnswer() {
+            const rCorrect = gameState.selection.r === true || gameState.selection.r === 'AUTO_CORRECT';
+            const mCorrect = gameState.selection.m === true || gameState.selection.m === 'AUTO_CORRECT';
+            
+            if (rCorrect && mCorrect) {
+                triggerSakura(); // 樱花特效
+                showPraise();
+                document.getElementById('word-display').classList.add('popping');
+                gameState.correctCount++;
+            } else {
+                document.body.classList.add('shaking');
+                setTimeout(() => document.body.classList.remove('shaking'), 500);
+                gameState.wrongList.push(gameState.queue[gameState.currentIndex]);
+            }
+            
+            setTimeout(() => {
+                gameState.currentIndex++;
+                if (gameState.currentIndex >= gameState.queue.length) {
+                    endLevel();
+                } else {
+                    renderQuestion();
+                }
+            }, 1000);
+        }
+
+        function showPraise() {
+            const praiseLayer = document.getElementById('praise-layer');
+            const el = document.createElement('div');
+            el.className = 'praise-text';
+            el.innerText = PRAISE_WORDS[Math.floor(Math.random() * PRAISE_WORDS.length)];
+            praiseLayer.innerHTML = '';
+            praiseLayer.appendChild(el);
+            setTimeout(() => { if(el.parentNode) el.parentNode.removeChild(el); }, 1000);
+        }
+
+        function endLevel() {
+            const total = gameState.queue.length;
+            const score = gameState.correctCount / total;
+            const overlay = document.getElementById('overlay');
+            const title = document.getElementById('res-title');
+            const scoreTxt = document.getElementById('res-score');
+            const nextBtn = document.getElementById('next-btn');
+            
+            overlay.style.display = 'flex';
+            scoreTxt.innerText = `正解率: ${Math.round(score * 100)}%`;
+            
+            if (gameState.isRetryMode) {
+                if (score >= 1.0) {
+                    gameState.retrySuccessCount++;
+                    if (gameState.retrySuccessCount >= 2) {
+                         title.innerText = "復活";
+                         title.style.color = "var(--matcha)";
+                         nextBtn.innerText = "戻る";
+                         nextBtn.onclick = () => { overlay.style.display = 'none'; startLevel(gameState.currentLevel + 1); };
+                    } else {
+                        title.innerText = "あと一息";
+                         title.style.color = "#d4af37";
+                         nextBtn.innerText = "もう一度";
+                         nextBtn.onclick = () => { overlay.style.display = 'none'; startRetryMode(); };
+                    }
+                } else {
+                    gameState.retrySuccessCount = 0; 
+                    title.innerText = "修行不足";
+                    title.style.color = "var(--vermilion)";
+                    nextBtn.innerText = "再修行";
+                    nextBtn.onclick = () => { overlay.style.display = 'none'; startRetryMode(); };
+                }
+                return;
+            }
+
+            if (score >= PERFECT_THRESHOLD) {
+                title.innerText = "皆伝 (PERFECT)";
+                title.style.color = "var(--japan-blue)";
+                saveProgress('🌸'); // 完美给樱花
+                nextBtn.innerText = "次へ進む";
+                nextBtn.onclick = () => { overlay.style.display = 'none'; startLevel(gameState.currentLevel + 1); };
+            } else if (score >= PASS_THRESHOLD) {
+                title.innerText = "合格";
+                title.style.color = "var(--matcha)";
+                saveProgress('🍵'); // 合格给抹茶
+                nextBtn.innerText = "次へ進む";
+                nextBtn.onclick = () => { overlay.style.display = 'none'; startLevel(gameState.currentLevel + 1); };
+            } else {
+                title.innerText = "不合格";
+                title.style.color = "var(--vermilion)";
+                saveProgress('🍂'); // 失败给落叶
+                nextBtn.innerText = "修行へ";
+                nextBtn.onclick = () => { overlay.style.display = 'none'; startRetryMode(); };
+            }
+        }
+        
+        function saveProgress(medal) {
+            if (!gameState.isRetryMode) {
+                const oldMedal = gameState.honors[gameState.currentLevel];
+                // 樱花 > 抹茶 > 落叶
+                const rank = {'🌸':3, '🍵':2, '🍂':1};
+                if (!oldMedal || (rank[medal] > rank[oldMedal])) {
+                    gameState.honors[gameState.currentLevel] = medal;
+                    DB.save('honors', gameState.honors);
+                }
+                if (medal !== '🍂' && gameState.currentLevel === gameState.maxLevel) {
+                    gameState.maxLevel++;
+                    DB.save('maxLevel', gameState.maxLevel);
+                }
+            }
+            renderTrophyWall();
+            renderLevelSelector();
+        }
+
+        function renderLevelSelector() {
+            const scroller = document.getElementById('level-scroller');
+            scroller.innerHTML = '';
+            const totalLevels = Math.ceil(rawData.length / WORDS_PER_LEVEL);
+            
+            for (let i = 1; i <= totalLevels; i++) {
+                const btn = document.createElement('div');
+                btn.className = `level-btn ${i > gameState.maxLevel ? 'locked' : ''} ${i === gameState.currentLevel ? 'active' : ''}`;
+                let content = `${i}`;
+                // 显示徽章
+                if (gameState.honors[i]) {
+                     // 如果有徽章，显示徽章在角落
+                     const badge = document.createElement('span');
+                     badge.innerText = gameState.honors[i];
+                     badge.style.position = 'absolute';
+                     badge.style.bottom = '-5px';
+                     badge.style.right = '-5px';
+                     badge.style.fontSize = '0.8rem';
+                     btn.appendChild(badge);
+                }
+                
+                // btn.innerHTML = content; // Keep number
+                const numSpan = document.createElement('span');
+                numSpan.innerText = i;
+                btn.appendChild(numSpan);
+
+                if (i <= gameState.maxLevel) btn.onclick = () => startLevel(i);
+                scroller.appendChild(btn);
+            }
+        }
+        
+        function renderTrophyWall() {
+            const wall = document.getElementById('trophy-wall');
+            wall.innerHTML = '<span style="color:#888; font-size:0.8rem; margin-right:10px; font-family:sans-serif;">達成目録 :: </span>';
+            Object.keys(gameState.honors).sort((a,b)=>a-b).forEach(lvl => {
+                const span = document.createElement('span');
+                span.className = 'trophy';
+                span.innerText = gameState.honors[lvl];
+                wall.appendChild(span);
+            });
+        }
+
+        function updateUIState() { renderLevelSelector(); }
+        function shuffle(array) {
+            let c = array.length, r;
+            while (c != 0) { r = Math.floor(Math.random() * c); c--; [array[c], array[r]] = [array[r], array[c]]; }
+            return array;
+        }
+
+        function resetData() {
+            if(confirm("警告：すべての記録を削除しますか？")) { DB.clear(); location.reload(); }
+        }
+
+        // Sakura Engine (Modified Confetti)
+        const canvas = document.getElementById('confetti-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        
+        // 樱花色板
+        const sakuraColors = ['#ffb7c5', '#ff9aa2', '#ffd1d1', '#fff0f0'];
+
+        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.onresize = resizeCanvas; resizeCanvas();
+        
+        function triggerSakura() {
+            for (let i = 0; i < 40; i++) particles.push({
+                x: window.innerWidth/2, y: window.innerHeight/2,
+                vx: (Math.random()-0.5)*15, vy: (Math.random()-0.5)*15 - 5, // 向上喷发
+                life: 1,
+                size: Math.random() * 8 + 5,
+                color: sakuraColors[Math.floor(Math.random()*sakuraColors.length)],
+                rotation: Math.random() * 360,
+                spin: (Math.random() - 0.5) * 10
+            });
+        }
+        
+        function updateSakura() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach((p, i) => {
+                p.x += p.vx; 
+                p.y += p.vy; 
+                p.vy += 0.2; // 重力
+                p.vx *= 0.96; // 空气阻力
+                p.life -= 0.015;
+                p.rotation += p.spin;
+
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rotation * Math.PI / 180);
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life;
+                // 绘制花瓣形状
+                ctx.beginPath();
+                ctx.ellipse(0, 0, p.size, p.size/2, 0, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.restore();
+                
+                if (p.life <= 0) particles.splice(i, 1);
+            });
+            requestAnimationFrame(updateSakura);
+        }
+        updateSakura();
+        
+        initGame();
+    </script>
+</body>
+</html>
