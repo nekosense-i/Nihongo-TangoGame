@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日语语音模糊识别</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 50px auto; text-align: center; background-color: #f5f5f5; }
+        .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        button { padding: 12px 24px; font-size: 16px; margin: 10px; cursor: pointer; border: none; border-radius: 5px; color: white; transition: 0.3s; }
+        #startBtn { background-color: #4CAF50; }
+        #startBtn:disabled { background-color: #a5d6a7; cursor: not-allowed; }
+        #stopBtn { background-color: #f44336; }
+        #stopBtn:disabled { background-color: #ef9a9a; cursor: not-allowed; }
+        #status { margin-top: 20px; font-weight: bold; color: #555; }
+        #resultBox { margin-top: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; min-height: 100px; text-align: left; background: #fafafa; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>日语发音识别系统</h2>
+        <p>请点击开始录音，尝试用日语发音（系统已针对非标准发音优化）</p>
+        
+        <div>
+            <button id="startBtn">开始录音</button>
+            <button id="stopBtn" disabled>停止并识别</button>
+        </div>
+        
+        <div id="status">等待操作...</div>
+        <div id="resultBox">识别结果将显示在这里...</div>
+    </div>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const statusDiv = document.getElementById('status');
+        const resultBox = document.getElementById('resultBox');
+        
+        // 目标API地址 (警告: workers.dev 在中国大陆可能无法直接访问)
+        const API_URL = 'https://nekosensei-aiapi.2367372529.workers.dev';
+
+        startBtn.onclick = async () => {
+            try {
+                // 调取设备麦克风，开启回声消除和降噪以提升非标准发音的音频质量
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: { echoCancellation: true, noiseSuppression: true } 
+                });
+                
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = event => {
+                    if (event.data.size > 0) audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = sendAudioToServer;
+                mediaRecorder.start();
+
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                statusDiv.innerText = "录音中...请说话";
+                statusDiv.style.color = "#d32f2f";
+            } catch (err) {
+                statusDiv.innerText = "无法访问麦克风，请检查浏览器权限及是否使用HTTPS。";
+                console.error("麦克风权限错误:", err);
+            }
+        };
+
+        stopBtn.onclick = () => {
+            if (mediaRecorder && mediaRecorder.state === "recording") {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                statusDiv.innerText = "正在处理语音并发送至服务器...";
+                statusDiv.style.color = "#1976d2";
+            }
+        };
+
+        async function sendAudioToServer() {
+            // 将录音打包为 Blob 对象
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            
+            // 构建表单数据 (此处假设 Worker 接收标准的 multipart/form-data)
+            // 如果后端需要特定的 prompt 来实现"模糊识别"，可以在此添加额外参数
+            const formData = new FormData();
+            formData.append('file', audioBlob, 'record.webm');
+            formData.append('language', 'ja');
+            // 提示词注入（假设后端支持）：引导模型宽容处理不标准发音
+            formData.append('prompt', '这是一个日语初学者的发音，语调可能不标准，请尽量根据音节模糊匹配出最合理的日语原文，不要严格校验口音。'); 
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    body: formData
+                    // 注意：这里不能手动设置 Content-Type 为 multipart/form-data，
+                    // fetch 会自动带上正确的 boundary 参数。
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP 错误! 状态码: ${response.status}`);
+                }
+
+                // 假设后端返回 JSON 格式： { "text": "识别出的内容" }
+                const result = await response.json();
+                
+                if (result && result.text) {
+                    resultBox.innerHTML = `<strong>识别结果：</strong><br>${result.text}`;
+                    statusDiv.innerText = "识别完成";
+                    statusDiv.style.color = "#388e3c";
+                } else {
+                    throw new Error("API 返回的数据格式不包含 text 字段");
+                }
+
+            } catch (error) {
+                console.error("请求失败:", error);
+                resultBox.innerHTML = `<span style="color:red;"><strong>请求失败：</strong><br>${error.message}</span><br>
+                <small>注：若在中国大陆测试，请确认 ${API_URL} 未被网络阻断，或尝试配置自定义域名/全局代理。</small>`;
+                statusDiv.innerText = "处理出错";
+            }
+        }
+    </script>
+</body>
+</html>
